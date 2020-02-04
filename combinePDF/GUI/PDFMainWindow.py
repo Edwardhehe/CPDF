@@ -4,11 +4,11 @@ import os
 import time
 import traceback
 
-from PyPDF4 import PdfFileMerger, PdfFileReader
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from pdfrw import PdfReader, PdfWriter
 
 
 class Ui_MainWindow(QMainWindow):
@@ -188,21 +188,17 @@ class PdfMergerThread(QThread):
         重写线程run方法
         :return:
         """
-        self.merge_pdfs(self.pdfs_files,self.output)
+        self.merge_pdfs(self.pdfs_files, self.output)
 
-    def merge_pdfs(self,pdfs_files, output):
-        result_pdfs = PdfFileMerger()
+    def merge_pdfs(self, pdfs_files, output):
         total = len(pdfs_files)
         progress_signal = 1
         self.progressBarValue.emit(progress_signal / total * 100)
 
-        for pdf in pdfs_files:
-            with open(pdf, 'rb') as fp:
-                pdf_reader = PdfFileReader(fp)
-                if pdf_reader.isEncrypted:
-                    continue
-                result_pdfs.append(pdf_reader, import_bookmarks=True)
-                progress_signal += 1  # 更新进度条信号
-                self.progressBarValue.emit(progress_signal / total * 100)  # 发信号
-        result_pdfs.write(output)
-        result_pdfs.close()
+        writer = PdfWriter()
+        for inpfn in pdfs_files:
+            writer.addpages(PdfReader(inpfn).pages)
+            progress_signal += 1  # 更新进度条信号
+            self.progressBarValue.emit(progress_signal / total * 100)  # 发信号
+
+        writer.write(output)
