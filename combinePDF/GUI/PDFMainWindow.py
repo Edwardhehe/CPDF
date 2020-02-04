@@ -4,11 +4,11 @@ import os
 import time
 import traceback
 
+from PyPDF2 import PdfFileMerger, PdfFileReader
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox
-
-import combinePDF.tools.CombinePDF as pdf_tools
 
 
 class Ui_MainWindow(QMainWindow):
@@ -65,13 +65,10 @@ class Ui_MainWindow(QMainWindow):
         self.conbinepdf_pushButton.setObjectName("conbinepdf_pushButton")
         self.verticalLayout.addWidget(self.conbinepdf_pushButton)
 
-
-        self.reset_pushbutton=QtWidgets.QPushButton(self.frame)
+        self.reset_pushbutton = QtWidgets.QPushButton(self.frame)
         self.reset_pushbutton.setText("重置pdf")
         self.verticalLayout.addWidget(self.reset_pushbutton)
         self.reset_pushbutton.setSizePolicy(sizePolicy)
-
-
 
         spacerItem = QtWidgets.QSpacerItem(20, 30, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout.addItem(spacerItem)
@@ -85,11 +82,20 @@ class Ui_MainWindow(QMainWindow):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        self.regist_action()
-        self.statusBar.showMessage("请选择pdf文件")
         self.filename_lineedit.setText(time.strftime("%Y-%m-%d", time.localtime(time.time())) +
                                        '合并后的.pdf')
-        self.filename_list = [] #文件列表
+        self.filename_list = []  # 文件列表
+
+        # 状态栏进度条
+        self.progressBar_instatucBar = QtWidgets.QProgressBar()
+        self.progressBar_instatucBar.setSizePolicy(sizePolicy)
+        self.progressBar_instatucBar.setRange(0, 100)
+
+        self.progressBar_instatucBar.setTextVisible(False)
+        self.statusBar.setSizeGripEnabled(False)
+        self.statusBar.addPermanentWidget(self.progressBar_instatucBar, 0)
+
+        self.regist_action()  # 注册按钮信息
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -105,7 +111,6 @@ class Ui_MainWindow(QMainWindow):
         self.import_pushButton.clicked.connect(self.import_pdf_action)
         self.conbinepdf_pushButton.clicked.connect(self.combine_pdf_action)
         self.reset_pushbutton.clicked.connect(self.reset_pdf_action)
-
 
     def import_pdf_action(self):
         """
@@ -126,14 +131,13 @@ class Ui_MainWindow(QMainWindow):
             output_filename = parent_name + '/' + self.filename_lineedit.text()
             print(output_filename)
             try:
-                pdf_tools.merge_pdfs(self.filename_list, output_filename)
+                self.merge_pdfs(self.filename_list, output_filename)
                 self.statusBar.showMessage("合并pdf文件成功文件位置：" + output_filename)
             except Exception as e:
                 traceback.print_exc()
                 print("合并失败！")
                 print("Error: 文件名：" + output_filename + "被占用")
                 self.statusBar.showMessage("合并失败！" + "Error: 文件名：" + output_filename + "被占用")
-
         else:
             # 如果未选择，强行点合并文件
             msgBox = QMessageBox()
@@ -144,9 +148,49 @@ class Ui_MainWindow(QMainWindow):
             self.statusBar.showMessage("未选择pdf文件")
 
     def reset_pdf_action(self):
-        self.filename_list=[]
+        """
+        重置全部文件
+        :return:
+        """
+        self.filename_list = []
         self.pdf_listWidget.clear()
 
+    @staticmethod
+    def merge_pdfs(pdfs_files, output):
+        result_pdfs = PdfFileMerger()
+
+        for pdf in pdfs_files:
+            with open(pdf, 'rb') as fp:
+                pdf_reader = PdfFileReader(fp)
+                if pdf_reader.isEncrypted:
+                    continue
+                result_pdfs.append(pdf_reader, import_bookmarks=True)
+        result_pdfs.write(output)
+        result_pdfs.close()
+
+    def update_processBar(self, i):
+        self.progressBar_instatucBar.setValue(i)
 
 
+class PdfMerger(QThread):
+    progressBarValue = pyqtSignal(int)  # 更新进度条
 
+    def __init__(self):
+        super(PdfMerger, self).__init__()
+
+    def merge_pdfs(self, pdfs_files, output):
+        result_pdfs = PdfFileMerger()
+        total = len(pdfs_files)
+        progress_signal = 1
+        self.progressBarValue.emit(progress_signal / total * 100)
+
+        for pdf in pdfs_files:
+            with open(pdf, 'rb') as fp:
+                pdf_reader = PdfFileReader(fp)
+                if pdf_reader.isEncrypted:
+                    continue
+                result_pdfs.append(pdf_reader, import_bookmarks=True)
+                progress_signal += 1  # 更新进度条信号
+                self.progressBarValue.emit(progress_signal / total * 100)  # 发信号
+        result_pdfs.write(output)
+        result_pdfs.close()

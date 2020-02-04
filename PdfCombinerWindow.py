@@ -12,6 +12,7 @@ if __name__ == '__main__':
     ui=combinePDF.GUI.PDFMainWindow.Ui_MainWindow()
     ui.setupUi(mainWindow)
     mainWindow.setWindowTitle("合并pdf")
+    mainWindow.setFixedSize(640, 400)
 
     mainWindow.show()
     sys.exit(app.exec_())
