@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
+"""
+主界面及合并pdf方法
+"""
 
 import os
 import time
-import traceback
 
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox
-from pdfrw import PdfReader, PdfWriter
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QCursor
+from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QMenu, QAction
+
+from combinePDF.GUI.MergePDFs import PdfMergerThread
 
 
 class Ui_MainWindow(QMainWindow):
@@ -95,11 +98,37 @@ class Ui_MainWindow(QMainWindow):
         self.statusBar.setSizeGripEnabled(False)
         self.statusBar.addPermanentWidget(self.progressBar_instatucBar, 0)
 
-        self.regist_action()  # 注册按钮信息
+        # 给listWidget加右键菜单
+        self.pdf_listWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.pdf_listWidget.customContextMenuRequested[QtCore.QPoint].connect(self.contextmenu_listWidget)
+        # 注册按钮信息
+        self.regist_action()
+
+    def contextmenu_listWidget(self):
+        rightMenu = QMenu(self.pdf_listWidget)
+
+        self.action_upper = QAction(u'上移')
+        self.action_delete = QAction(u'删除')
+        self.action_lower = QAction(u'下移')
+        self.action_sort = QAction(u'正向排序')
+        self.action_sort_reverse = QAction(u'反向排序')
+
+        rightMenu.addAction(self.action_upper)
+        rightMenu.addAction(self.action_delete)
+        rightMenu.addAction(self.action_lower)
+        rightMenu.addAction(self.action_sort)
+        rightMenu.addAction(self.action_sort_reverse)
+
+        # 链接方法：
+        self.action_sort_reverse.triggered.connect(self.sort_reverse_list_widget)
+        self.action_sort.triggered.connect(self.sort_list_widget)
+        # self.action_delete.triggered.connect(self.action_delete(QCursor.pos()))
+
+        rightMenu.exec_(QCursor.pos())
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "合并pdf"))
         self.import_pushButton.setText(_translate("MainWindow", "导入文件"))
         self.conbinepdf_pushButton.setText(_translate("MainWindow", "合并pdf"))
 
@@ -123,22 +152,19 @@ class Ui_MainWindow(QMainWindow):
 
     def combine_pdf_action(self):
         """
-        合并pdf动作
+        合并pdf按钮动作
         :return:
         """
         if self.filename_list:
             parent_name = os.path.dirname(self.filename_list[0])
             output_filename = parent_name + '/' + self.filename_lineedit.text()
             print(output_filename)
-            try:
-                self.pdfMerge_thread = PdfMergerThread(self.filename_list, output_filename)
-                self.pdfMerge_thread.progressBarValue.connect(self.update_processBar)
-                self.pdfMerge_thread.work_status.connect(self.update_statusBar)
-                self.pdfMerge_thread.start()
-                # self.statusBar.showMessage("合并pdf文件成功文件位置：" + output_filename)
-            except Exception as e:
-                traceback.print_exc()
-                self.statusBar.showMessage("合并失败！" + "原因可能是: 文件名：" + output_filename + "被占用")
+            # 启动pdf合并线程及线程通讯
+            self.pdfMerge_thread = PdfMergerThread(self.filename_list, output_filename)
+            self.pdfMerge_thread.progressBarValue.connect(self.update_processBar)
+            self.pdfMerge_thread.work_status.connect(self.update_statusBar)
+            self.pdfMerge_thread.start()
+
         else:
             # 如果未选择，强行点合并文件
             msgBox = QMessageBox()
@@ -162,36 +188,31 @@ class Ui_MainWindow(QMainWindow):
     def update_statusBar(self, message):
         self.statusBar.showMessage(message)
 
-
-class PdfMergerThread(QThread):
-    """
-    pdf合并累，采用多线程模式，可以更新进度条
-    """
-    progressBarValue = pyqtSignal(int)  # 更新进度条
-    work_status = pyqtSignal(object)  # 任务状态信号
-
-    def __init__(self, pdfs_files, output):
-        super(PdfMergerThread, self).__init__()
-        self.pdfs_files = pdfs_files
-        self.output = output
-
-    def run(self):
+    def delete_list_widget(self, pos):
         """
-        重写线程run方法
+        :param pos:
+        :param x: x坐标
+        :param y: y坐标
         :return:
         """
-        self.merge_pdfs(self.pdfs_files, self.output)
+        x = pos.x()
+        y = pos.y()
+        item = self.pdf_listWidget.itemAt(x, y)
+        self.pdf_listWidget.removeItemWidget(self.pdf_listWidget.takeItem(
+            self.pdf_listWidget.row(item)))
 
-    def merge_pdfs(self, pdfs_files, output):
-        total = len(pdfs_files)
-        progress_signal = 1
-        self.progressBarValue.emit(progress_signal / total * 100)
+    def sort_list_widget(self):
+        """
+        正向排序
+        :return:
+        """
+        self.pdf_listWidget.sortItems(Qt.AscendingOrder)
+        self.filename_list.sort(reverse=False)
 
-        writer = PdfWriter()
-        for inpfn in pdfs_files:
-            writer.addpages(PdfReader(inpfn).pages)
-            progress_signal += 1  # 更新进度条信号
-            self.progressBarValue.emit(progress_signal / total * 100)  # 发信号
-
-        writer.write(output)
-        self.work_status.emit("合并pdf文件成功! 文件位置：" + output)
+    def sort_reverse_list_widget(self):
+        """
+        反向排序
+        :return:
+        """
+        self.pdf_listWidget.sortItems(Qt.DescendingOrder)
+        self.filename_list.sort(reverse=True)
