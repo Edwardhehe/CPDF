@@ -131,8 +131,11 @@ class Ui_MainWindow(QMainWindow):
             output_filename = parent_name + '/' + self.filename_lineedit.text()
             print(output_filename)
             try:
-                self.merge_pdfs(self.filename_list, output_filename)
-                self.statusBar.showMessage("合并pdf文件成功文件位置：" + output_filename)
+                self.pdfMerge_thread= PdfMergerThread(self.filename_list, output_filename)
+                self.pdfMerge_thread.progressBarValue.connect(self.update_processBar)
+                self.pdfMerge_thread.start()
+                # self.merge_pdfs(self.filename_list, output_filename)
+                # self.statusBar.showMessage("合并pdf文件成功文件位置：" + output_filename)
             except Exception as e:
                 traceback.print_exc()
                 print("合并失败！")
@@ -155,30 +158,39 @@ class Ui_MainWindow(QMainWindow):
         self.filename_list = []
         self.pdf_listWidget.clear()
 
-    @staticmethod
-    def merge_pdfs(pdfs_files, output):
-        result_pdfs = PdfFileMerger()
-
-        for pdf in pdfs_files:
-            with open(pdf, 'rb') as fp:
-                pdf_reader = PdfFileReader(fp)
-                if pdf_reader.isEncrypted:
-                    continue
-                result_pdfs.append(pdf_reader, import_bookmarks=True)
-        result_pdfs.write(output)
-        result_pdfs.close()
+    # @staticmethod
+    # def merge_pdfs(pdfs_files, output):
+    #     result_pdfs = PdfFileMerger()
+    #
+    #     for pdf in pdfs_files:
+    #         with open(pdf, 'rb') as fp:
+    #             pdf_reader = PdfFileReader(fp)
+    #             if pdf_reader.isEncrypted:
+    #                 continue
+    #             result_pdfs.append(pdf_reader, import_bookmarks=True)
+    #     result_pdfs.write(output)
+    #     result_pdfs.close()
 
     def update_processBar(self, i):
         self.progressBar_instatucBar.setValue(i)
 
 
-class PdfMerger(QThread):
+class PdfMergerThread(QThread):
     progressBarValue = pyqtSignal(int)  # 更新进度条
 
-    def __init__(self):
-        super(PdfMerger, self).__init__()
+    def __init__(self,pdfs_files, output):
+        super(PdfMergerThread, self).__init__()
+        self.pdfs_files=pdfs_files
+        self.output=output
 
-    def merge_pdfs(self, pdfs_files, output):
+    def run(self):
+        """
+        重写线程run方法
+        :return:
+        """
+        self.merge_pdfs(self.pdfs_files,self.output)
+
+    def merge_pdfs(self,pdfs_files, output):
         result_pdfs = PdfFileMerger()
         total = len(pdfs_files)
         progress_signal = 1
