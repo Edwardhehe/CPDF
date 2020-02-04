@@ -4,7 +4,7 @@ import os
 import time
 import traceback
 
-from PyPDF2 import PdfFileMerger, PdfFileReader
+from PyPDF4 import PdfFileMerger, PdfFileReader
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
