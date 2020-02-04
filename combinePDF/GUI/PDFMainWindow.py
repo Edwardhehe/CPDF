@@ -131,16 +131,14 @@ class Ui_MainWindow(QMainWindow):
             output_filename = parent_name + '/' + self.filename_lineedit.text()
             print(output_filename)
             try:
-                self.pdfMerge_thread= PdfMergerThread(self.filename_list, output_filename)
+                self.pdfMerge_thread = PdfMergerThread(self.filename_list, output_filename)
                 self.pdfMerge_thread.progressBarValue.connect(self.update_processBar)
+                self.pdfMerge_thread.work_status.connect(self.update_statusBar)
                 self.pdfMerge_thread.start()
-                # self.merge_pdfs(self.filename_list, output_filename)
                 # self.statusBar.showMessage("合并pdf文件成功文件位置：" + output_filename)
             except Exception as e:
                 traceback.print_exc()
-                print("合并失败！")
-                print("Error: 文件名：" + output_filename + "被占用")
-                self.statusBar.showMessage("合并失败！" + "Error: 文件名：" + output_filename + "被占用")
+                self.statusBar.showMessage("合并失败！" + "原因可能是: 文件名：" + output_filename + "被占用")
         else:
             # 如果未选择，强行点合并文件
             msgBox = QMessageBox()
@@ -158,30 +156,24 @@ class Ui_MainWindow(QMainWindow):
         self.filename_list = []
         self.pdf_listWidget.clear()
 
-    # @staticmethod
-    # def merge_pdfs(pdfs_files, output):
-    #     result_pdfs = PdfFileMerger()
-    #
-    #     for pdf in pdfs_files:
-    #         with open(pdf, 'rb') as fp:
-    #             pdf_reader = PdfFileReader(fp)
-    #             if pdf_reader.isEncrypted:
-    #                 continue
-    #             result_pdfs.append(pdf_reader, import_bookmarks=True)
-    #     result_pdfs.write(output)
-    #     result_pdfs.close()
-
     def update_processBar(self, i):
         self.progressBar_instatucBar.setValue(i)
 
+    def update_statusBar(self, message):
+        self.statusBar.showMessage(message)
+
 
 class PdfMergerThread(QThread):
+    """
+    pdf合并累，采用多线程模式，可以更新进度条
+    """
     progressBarValue = pyqtSignal(int)  # 更新进度条
+    work_status = pyqtSignal(object)  # 任务状态信号
 
-    def __init__(self,pdfs_files, output):
+    def __init__(self, pdfs_files, output):
         super(PdfMergerThread, self).__init__()
-        self.pdfs_files=pdfs_files
-        self.output=output
+        self.pdfs_files = pdfs_files
+        self.output = output
 
     def run(self):
         """
@@ -202,3 +194,4 @@ class PdfMergerThread(QThread):
             self.progressBarValue.emit(progress_signal / total * 100)  # 发信号
 
         writer.write(output)
+        self.work_status.emit("合并pdf文件成功! 文件位置：" + output)
