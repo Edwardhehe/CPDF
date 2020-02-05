@@ -8,7 +8,7 @@ import time
 
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QCursor
+from PyQt5.QtGui import QCursor
 from PyQt5.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QMenu, QAction
 
 from combinePDF.GUI.MergePDFs import PdfMergerThread
@@ -16,7 +16,6 @@ from combinePDF.GUI.MergePDFs import PdfMergerThread
 
 class Ui_MainWindow(QMainWindow):
     def setupUi(self, MainWindow):
-        MainWindow.setWindowIcon(QIcon('../../images/favicon.ico'))
         MainWindow.resize(640, 400)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -124,7 +123,6 @@ class Ui_MainWindow(QMainWindow):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "合并pdf"))
         self.import_pushButton.setText(_translate("MainWindow", "导入文件"))
         self.conbinepdf_pushButton.setText(_translate("MainWindow", "合并pdf"))
 
