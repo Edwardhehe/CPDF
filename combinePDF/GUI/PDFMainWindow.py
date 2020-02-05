@@ -107,22 +107,18 @@ class Ui_MainWindow(QMainWindow):
     def contextmenu_listWidget(self):
         rightMenu = QMenu(self.pdf_listWidget)
 
-        self.action_upper = QAction(u'上移')
         self.action_delete = QAction(u'删除')
-        self.action_lower = QAction(u'下移')
         self.action_sort = QAction(u'正向排序')
         self.action_sort_reverse = QAction(u'反向排序')
 
-        rightMenu.addAction(self.action_upper)
         rightMenu.addAction(self.action_delete)
-        rightMenu.addAction(self.action_lower)
         rightMenu.addAction(self.action_sort)
         rightMenu.addAction(self.action_sort_reverse)
 
         # 链接方法：
         self.action_sort_reverse.triggered.connect(self.sort_reverse_list_widget)
         self.action_sort.triggered.connect(self.sort_list_widget)
-        # self.action_delete.triggered.connect(self.action_delete(QCursor.pos()))
+        self.action_delete.triggered.connect(self.delete_list_widget)
 
         rightMenu.exec_(QCursor.pos())
 
@@ -146,9 +142,9 @@ class Ui_MainWindow(QMainWindow):
         获取文件名称数组
         """
         openfileNames = QFileDialog.getOpenFileNames(self.centralwidget, '请选择要合并的pdf文件', './', '("PDF (*.pdf *.PDF)")')
-        self.filename_list = openfileNames[0]
+        self.filename_list = self.filename_list + openfileNames[0]
         self.statusBar.showMessage("导入" + str(len(self.filename_list)) + "个pdf文件成功")
-        self.pdf_listWidget.addItems(self.filename_list)
+        self.pdf_listWidget.addItems(openfileNames[0])
 
     def combine_pdf_action(self):
         """
@@ -188,18 +184,21 @@ class Ui_MainWindow(QMainWindow):
     def update_statusBar(self, message):
         self.statusBar.showMessage(message)
 
-    def delete_list_widget(self, pos):
+    def delete_list_widget(self):
         """
         :param pos:
         :param x: x坐标
         :param y: y坐标
         :return:
         """
-        x = pos.x()
-        y = pos.y()
-        item = self.pdf_listWidget.itemAt(x, y)
-        self.pdf_listWidget.removeItemWidget(self.pdf_listWidget.takeItem(
-            self.pdf_listWidget.row(item)))
+        items = self.pdf_listWidget.selectedItems()
+        if len(items) > 0:
+            index = self.pdf_listWidget.selectedIndexes()[0].row()
+            self.filename_list.pop(index)
+            print(index)
+            self.pdf_listWidget.takeItem(index)
+        else:
+            self.statusBar.showMessage("未选中对象！")
 
     def sort_list_widget(self):
         """
